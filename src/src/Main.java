@@ -1,18 +1,32 @@
 package src;
 
-import java.awt.image.BufferedImage;
 import java.beans.PropertyVetoException;
-import java.io.File;
-import javax.swing.JFileChooser;
 import javax.swing.JInternalFrame;
+import javax.swing.JOptionPane;
+import javax.swing.event.InternalFrameEvent;
+import javax.swing.event.InternalFrameListener;
 
-public class Main extends javax.swing.JFrame {
-    private BufferedImage img[];
-    public Main() {
-        initComponents();
-        setExtendedState(getExtendedState() | MAXIMIZED_BOTH);
-    }
+public class Main extends javax.swing.JFrame implements InternalFrameListener{
+    private static final int MAX_IMAGES = 20, BG = 0, OTHER = 1;
+    private int imageID, imageNumber;
+    private ImageInfo BGImage, Image;
+    private FileOperations fileOp;
+    private JInternalFrame iframe[];
     
+    public Main() {
+        initComponents();                                               // iniciar janela
+        setExtendedState(getExtendedState() | MAXIMIZED_BOTH);          // em modo maximizado
+        imageID = imageNumber = 0;
+        fileOp = new FileOperations();
+        iframe = new JInternalFrame[MAX_IMAGES];
+        setBGImage();
+    }
+
+    public void setBGImage () {
+        JOptionPane.showMessageDialog(this, "Please, select background image!");
+        loadToJInternalFrame(BG);
+    }
+
     /** This method is called from within the constructor to
      * initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is
@@ -22,16 +36,20 @@ public class Main extends javax.swing.JFrame {
     private void initComponents() {
 
         jPanel1 = new javax.swing.JPanel();
-        jButton1 = new javax.swing.JButton();
-        jButton2 = new javax.swing.JButton();
-        jButton3 = new javax.swing.JButton();
+        originalButton = new javax.swing.JButton();
+        blackAndWhiteButton = new javax.swing.JButton();
+        NegativeButton = new javax.swing.JButton();
         jPanel2 = new javax.swing.JPanel();
         jDesktopPane1 = new javax.swing.JDesktopPane();
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu1 = new javax.swing.JMenu();
-        jMenuItem1 = new javax.swing.JMenuItem();
+        LoadItem = new javax.swing.JMenuItem();
+        saveItem = new javax.swing.JMenuItem();
         jSeparator1 = new javax.swing.JSeparator();
-        jMenuItem2 = new javax.swing.JMenuItem();
+        exitItem = new javax.swing.JMenuItem();
+        jMenu2 = new javax.swing.JMenu();
+        jMenu3 = new javax.swing.JMenu();
+        jMenuItem1 = new javax.swing.JMenuItem();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Human Detector");
@@ -39,19 +57,29 @@ public class Main extends javax.swing.JFrame {
         jPanel1.setBorder(javax.swing.BorderFactory.createTitledBorder("Options"));
         jPanel1.setLayout(new java.awt.GridLayout(3, 1));
 
-        jButton1.setText("Original");
-        jPanel1.add(jButton1);
-
-        jButton2.setText("B & W");
-        jButton2.addActionListener(new java.awt.event.ActionListener() {
+        originalButton.setText("Original");
+        originalButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton2ActionPerformed(evt);
+                originalButtonActionPerformed(evt);
             }
         });
-        jPanel1.add(jButton2);
+        jPanel1.add(originalButton);
 
-        jButton3.setText("Negative");
-        jPanel1.add(jButton3);
+        blackAndWhiteButton.setText("B & W");
+        blackAndWhiteButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                blackAndWhiteButtonActionPerformed(evt);
+            }
+        });
+        jPanel1.add(blackAndWhiteButton);
+
+        NegativeButton.setText("Negative");
+        NegativeButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                NegativeButtonActionPerformed(evt);
+            }
+        });
+        jPanel1.add(NegativeButton);
 
         jPanel2.setBorder(javax.swing.BorderFactory.createEtchedBorder());
 
@@ -68,31 +96,55 @@ public class Main extends javax.swing.JFrame {
             .add(org.jdesktop.layout.GroupLayout.TRAILING, jDesktopPane1, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 355, Short.MAX_VALUE)
         );
 
-        jMenu1.setMnemonic('F');
+        jMenu1.setMnemonic('E');
         jMenu1.setText("File");
 
-        jMenuItem1.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_L, java.awt.event.InputEvent.CTRL_MASK));
-        jMenuItem1.setMnemonic('L');
-        jMenuItem1.setText("Load");
-        jMenuItem1.addActionListener(new java.awt.event.ActionListener() {
+        LoadItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_L, java.awt.event.InputEvent.CTRL_MASK));
+        LoadItem.setMnemonic('L');
+        LoadItem.setText("Load");
+        LoadItem.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 LoadImage(evt);
             }
         });
-        jMenu1.add(jMenuItem1);
+        jMenu1.add(LoadItem);
+
+        saveItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S, java.awt.event.InputEvent.CTRL_MASK));
+        saveItem.setMnemonic('S');
+        saveItem.setText("Save");
+        saveItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                SaveImage(evt);
+            }
+        });
+        jMenu1.add(saveItem);
         jMenu1.add(jSeparator1);
 
-        jMenuItem2.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_Q, java.awt.event.InputEvent.CTRL_MASK));
-        jMenuItem2.setMnemonic('E');
-        jMenuItem2.setText("Exit");
-        jMenuItem2.addActionListener(new java.awt.event.ActionListener() {
+        exitItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_E, java.awt.event.InputEvent.CTRL_MASK));
+        exitItem.setMnemonic('E');
+        exitItem.setText("Exit");
+        exitItem.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 Exit(evt);
             }
         });
-        jMenu1.add(jMenuItem2);
+        jMenu1.add(exitItem);
 
         jMenuBar1.add(jMenu1);
+
+        jMenu2.setMnemonic('A');
+        jMenu2.setText("Action");
+        jMenuBar1.add(jMenu2);
+
+        jMenu3.setMnemonic('O');
+        jMenu3.setText("Options");
+
+        jMenuItem1.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_B, java.awt.event.InputEvent.CTRL_MASK));
+        jMenuItem1.setMnemonic('B');
+        jMenuItem1.setText("Set new background");
+        jMenu3.add(jMenuItem1);
+
+        jMenuBar1.add(jMenu3);
 
         setJMenuBar(jMenuBar1);
 
@@ -123,27 +175,56 @@ public class Main extends javax.swing.JFrame {
     }//GEN-LAST:event_Exit
 
     private void LoadImage(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_LoadImage
-        JFileChooser jfc = new JFileChooser();
-        if (jfc.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-            File file = jfc.getSelectedFile();
-            JInternalFrame iframe = new JInternalFrame(file.toString(), // title
-                                                        false,          // resizible
-                                                        true,           // closable
-                                                        false,          // maximizable
-                                                        true);          // iconifiable
-            iframe.add(new LoadImage(file));                            // load mage to iframe
-            iframe.pack(); iframe.setVisible(true);
-            
-            jDesktopPane1.add(iframe);
-            try {
-                iframe.setSelected(true);
-            } catch (PropertyVetoException ex) {}
-        }
+        loadToJInternalFrame(OTHER);
     }//GEN-LAST:event_LoadImage
 
-    private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
+    private void blackAndWhiteButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_blackAndWhiteButtonActionPerformed
 
-    }//GEN-LAST:event_jButton2ActionPerformed
+}//GEN-LAST:event_blackAndWhiteButtonActionPerformed
+
+    private void NegativeButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_NegativeButtonActionPerformed
+
+}//GEN-LAST:event_NegativeButtonActionPerformed
+
+    private void originalButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_originalButtonActionPerformed
+
+}//GEN-LAST:event_originalButtonActionPerformed
+
+    private void SaveImage(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_SaveImage
+        fileOp.SaveImage(Image.img);
+    }//GEN-LAST:event_SaveImage
+
+
+    private void loadToJInternalFrame (int type) {        
+        switch (type) {
+            case BG:
+                iframe[imageNumber] = new JInternalFrame("Backgound Image",// title
+                                    false,          // resizible
+                                    true,           // closable
+                                    false,          // maximizable
+                                    true);          // iconifiable
+                iframe[imageNumber].addInternalFrameListener(this);
+                BGImage = new ImageInfo(fileOp.LoadImage());
+                iframe[imageNumber].add(BGImage);
+                break;
+            case OTHER:
+                iframe[imageNumber] = new JInternalFrame("Image",// title
+                                    false,          // resizible
+                                    true,           // closable
+                                    false,          // maximizable
+                                    true);          // iconifiable
+                Image = new ImageInfo(fileOp.LoadImage());
+                iframe[imageNumber].add(Image);
+                break;
+        }
+        
+        iframe[imageNumber].pack(); iframe[imageNumber].setVisible(true);
+        jDesktopPane1.add(iframe[imageNumber]);
+        
+        try {
+            iframe[imageNumber++].setSelected(true);
+        } catch (PropertyVetoException ex) {System.out.println("Error: fail put new frame selected");}
+    }
     
     /**
      * @param args the command line arguments
@@ -157,17 +238,46 @@ public class Main extends javax.swing.JFrame {
     }
     
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton jButton1;
-    private javax.swing.JButton jButton2;
-    private javax.swing.JButton jButton3;
+    private javax.swing.JMenuItem LoadItem;
+    private javax.swing.JButton NegativeButton;
+    private javax.swing.JButton blackAndWhiteButton;
+    private javax.swing.JMenuItem exitItem;
     private javax.swing.JDesktopPane jDesktopPane1;
     private javax.swing.JMenu jMenu1;
+    private javax.swing.JMenu jMenu2;
+    private javax.swing.JMenu jMenu3;
     private javax.swing.JMenuBar jMenuBar1;
     private javax.swing.JMenuItem jMenuItem1;
-    private javax.swing.JMenuItem jMenuItem2;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JSeparator jSeparator1;
+    private javax.swing.JButton originalButton;
+    private javax.swing.JMenuItem saveItem;
     // End of variables declaration//GEN-END:variables
-    
+
+    public void internalFrameOpened(InternalFrameEvent e) {    }
+
+    public void internalFrameClosing(InternalFrameEvent e) {
+
+    }
+
+    public void internalFrameClosed(InternalFrameEvent e) {
+
+    }
+
+    public void internalFrameIconified(InternalFrameEvent e) {
+
+    }
+
+    public void internalFrameDeiconified(InternalFrameEvent e) {
+
+    }
+
+    public void internalFrameActivated(InternalFrameEvent e) {
+        System.out.println(e);
+    }
+
+    public void internalFrameDeactivated(InternalFrameEvent e) {
+
+    }
 }
